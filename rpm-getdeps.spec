@@ -1,13 +1,13 @@
 Summary:	Get dependencies out of RPM spec file
 Summary(pl):	Pobieranie zależności z pliku spec pakietu RPM
 Name:		rpm-getdeps
-Version:	0.0.7
-Release:	2
+Version:	0.0.8
+Release:	1
 License:	GPL
 Group:		Applications/System
 Source0:	getdeps.c
-# Source0-md5:	c20a7f6a0ef86461514fbf55092ae434
-BuildRequires:	rpm-devel
+Source1:	Makefile
+BuildRequires:	rpm-devel >= 1:4.16.0
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
@@ -18,9 +18,14 @@ Pobieranie zależności z pliku spec pakietu RPM.
 
 %prep
 %setup -q -c -T
+ln -s %{SOURCE0} .
+ln -s %{SOURCE1} .
 
 %build
-%{__cc} %{rpmcflags} %{rpmldflags} -I/usr/include/rpm -Wall -lrpm -lrpmbuild %{SOURCE0} -o rpm-getdeps
+%{__make} \
+	CC="%{__cc}" \
+	RPMLDFLAGS="%{rpmldflags}" \
+	RPMCFLAGS="%{rpmcflags}"
 
 %install
 rm -rf $RPM_BUILD_ROOT

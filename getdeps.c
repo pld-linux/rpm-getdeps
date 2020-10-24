@@ -1,5 +1,3 @@
-// $Id$    --*- c -*--
-
 // Copyright (C) 2003 Enrico Scholz <enrico.scholz@informatik.tu-chemnitz.de>
 //  
 // This program is free software; you can redistribute it and/or modify
@@ -37,28 +35,21 @@
 // version 0.0.1, 2003-11-19
 //    * initial version
 
-
-#define _GNU_SOURCE
-
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
+#include <assert.h>
 #include <getopt.h>
+#include <grp.h>
+#include <libgen.h>
 #include <stdbool.h>
 #include <string.h>
-#include <assert.h>
-#include <unistd.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <unistd.h>
 
+#include <header.h>
 #include <rpmbuild.h>
 #include <rpmlib.h>
-#include <header.h>
-
-#ifndef RPM404
-#  include <rpmts.h>
-#endif
+#include <rpmlog.h>
+#include <rpmts.h>
 
 #define ARG_WITH	1024
 #define ARG_WITHOUT	1025
@@ -102,10 +93,10 @@ struct Arguments
 };
 
 struct DepSet {
-    int32_t const *	flags;
-    char const **	name;
-    char const **	version;
-    ssize_t		cnt;
+    rpmtd	flags;
+    rpmtd	name;
+    rpmtd	version;
+    ssize_t	cnt;
 };
 
 inline static void 
@@ -222,42 +213,55 @@ setMacros(char const * const *macros, size_t cnt)
 }
 
 static void
-printDepSet(struct DepSet const *set, char const *prefix)
+printDepSet(struct DepSet set, char const *prefix)
 {
   ssize_t	i;
-  for (i=0; i<set->cnt; ++i)
-    printf("%s%08x %s %s\n", prefix, set->flags[i], set->name[i], set->version[i]);
+  for (i=0; i<set.cnt; ++i) {
+    printf("%s%08x %s %s\n", prefix, (uint32_t)rpmtdGetNumber(set.flags), rpmtdGetString(set.name), rpmtdGetString(set.version));
+    rpmtdNext(set.flags);
+    rpmtdNext(set.name);
+    rpmtdNext(set.version);
+  }
 }
 
 static void
 evaluateHeader(Header h)
 {
-  int32_t		cnt[3];
-  struct DepSet		buildreqs = { 0,0,0,0 };
-  struct DepSet		conflicts = { 0,0,0,0 };
+  struct DepSet		buildreqs;
+  struct DepSet		conflicts;
 
-  if (headerGetEntry(h, RPMTAG_REQUIREFLAGS,    0, (void**)&buildreqs.flags,   cnt+0) &&
-      headerGetEntry(h, RPMTAG_REQUIRENAME,     0, (void**)&buildreqs.name,    cnt+1) &&
-      headerGetEntry(h, RPMTAG_REQUIREVERSION,  0, (void**)&buildreqs.version, cnt+2)) {
-    assert(cnt[0]==cnt[1] && cnt[1]==cnt[2]);
-    buildreqs.cnt = cnt[0];
+  buildreqs.flags = rpmtdNew();
+  buildreqs.name = rpmtdNew();
+  buildreqs.version = rpmtdNew();
+  buildreqs.cnt = 0;
+
+  if (headerGet(h, RPMTAG_REQUIREFLAGS,    buildreqs.flags,   0) &&
+      headerGet(h, RPMTAG_REQUIRENAME,     buildreqs.name,    0) &&
+      headerGet(h, RPMTAG_REQUIREVERSION,  buildreqs.version, 0)) {
+    assert(buildreqs.flags->count==buildreqs.name->count && buildreqs.name->count==buildreqs.version->count);
+    buildreqs.cnt = buildreqs.flags->count;
   }
 
-  if (headerGetEntry(h, RPMTAG_CONFLICTFLAGS,   0, (void**)&conflicts.flags,   cnt+0) &&
-      headerGetEntry(h, RPMTAG_CONFLICTNAME,    0, (void**)&conflicts.name,    cnt+1) &&
-      headerGetEntry(h, RPMTAG_CONFLICTVERSION, 0, (void**)&conflicts.version, cnt+2)) {
-    assert(cnt[0]==cnt[1] && cnt[1]==cnt[2]);
-    conflicts.cnt = cnt[0];
+  conflicts.flags = rpmtdNew();
+  conflicts.name = rpmtdNew();
+  conflicts.version = rpmtdNew();
+  conflicts.cnt = 0;
+
+  if (headerGet(h, RPMTAG_CONFLICTFLAGS,   conflicts.flags,   0) &&
+      headerGet(h, RPMTAG_CONFLICTNAME,    conflicts.name,    0) &&
+      headerGet(h, RPMTAG_CONFLICTVERSION, conflicts.version, 0)) {
+    assert(conflicts.flags->count==conflicts.name->count && conflicts.name->count==conflicts.version->count);
+    conflicts.cnt = conflicts.flags->count;
   }
 
-  printDepSet(&buildreqs, "+ ");
-  printDepSet(&conflicts, "- ");
+  printDepSet(buildreqs, "+ ");
+  printDepSet(conflicts, "- ");
 }
 
 int main(int argc, char *argv[])
 {
   struct Arguments	args = { 0,0,0,-1,-1, {0,0,0}, 0 };
-  Spec			s;
+  rpmSpec		s;
 
   parseArgs(&args, argc, argv);
 
@@ -268,28 +272,12 @@ int main(int argc, char *argv[])
     perror("chroot/setuid/setgid()");
     return EXIT_FAILURE;
   }
-  
+
+  rpmSetVerbosity(RPMLOG_ERR);
+
   rpmReadConfigFiles(args.rcfile, args.target);
   setMacros(args.macros.values, args.macros.cnt);
 
-
-#ifndef RPM404
-  rpmts			ts = rpmtsCreate();
-  if (parseSpec(ts, args.specfile, 0,0, 1, 0,0, 1,1)!=0) {
-    return EXIT_FAILURE;
-  }
-  
-  s = rpmtsSpec(ts);
-#else
-  if (parseSpec(&s, args.specfile, 0,0, 1, 0,0, 1,1)!=0) {
-    return EXIT_FAILURE;
-  }
-#endif
-
-  evaluateHeader(s->buildRestrictions);
+  s = rpmSpecParse(args.specfile, RPMSPEC_FORCE, NULL);
+  evaluateHeader(rpmSpecSourceHeader(s));
 }
-
-/// Local Variables:
-/// compile-command: "make getdeps LDFLAGS='-lrpm       -lrpmbuild'       CFLAGS='-I/usr/include/rpm       -Wall -W -pedantic --std=c99 -g3 -O0'"
-/// compile-commandX: "make getdeps LDFLAGS='-lrpm-4.0.4 -lrpmbuild-4.0.4 -lrpmio-4.0.4 -lrpmdb-4.0.4 -lpopt' CFLAGS='-I/usr/include/rpm-4.0.4 -Wall -W -pedantic --std=c99 -g3 -O0 -DRPM404'"
-/// End:
