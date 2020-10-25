@@ -1,5 +1,5 @@
 Summary:	Get dependencies out of RPM spec file
-Summary(pl):	Pobieranie zależności z pliku spec pakietu RPM
+Summary(pl.UTF-8):	Pobieranie zależności z pliku spec pakietu RPM
 Name:		rpm-getdeps
 Version:	0.0.8
 Release:	1
@@ -13,7 +13,7 @@ BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 %description
 Get dependencies out of RPM spec file.
 
-%description -l pl
+%description -l pl.UTF-8
 Pobieranie zależności z pliku spec pakietu RPM.
 
 %prep
