@@ -25,7 +25,7 @@ ln -s %{SOURCE0} .
 ln -s %{SOURCE1} .
 
 %build
-echo %{__make} \
+%{__make} \
 	CC="%{__cc}" \
 	RPMLDFLAGS="%{rpmldflags}" \
 	RPMCFLAGS="%{rpmcflags}"
