@@ -1,3 +1,6 @@
+# NOTES:
+# BUG: Sometimes does not print last BR: see gnuchess.spec d19b5d9
+# Consider using rpmspec tool instead
 Summary:	Get dependencies out of RPM spec file
 Summary(pl.UTF-8):	Pobieranie zależności z pliku spec pakietu RPM
 Name:		rpm-getdeps
@@ -22,7 +25,7 @@ ln -s %{SOURCE0} .
 ln -s %{SOURCE1} .
 
 %build
-%{__make} \
+echo %{__make} \
 	CC="%{__cc}" \
 	RPMLDFLAGS="%{rpmldflags}" \
 	RPMCFLAGS="%{rpmcflags}"
