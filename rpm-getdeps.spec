@@ -5,7 +5,7 @@ Summary:	Get dependencies out of RPM spec file
 Summary(pl.UTF-8):	Pobieranie zależności z pliku spec pakietu RPM
 Name:		rpm-getdeps
 Version:	0.0.8
-Release:	1
+Release:	2
 License:	GPL
 Group:		Applications/System
 Source0:	getdeps.c
